@@ -1,4 +1,5 @@
 // app/api/star/saderiba/route.ts
+import "@/lib/registerFont";
 import { NextRequest } from "next/server";
 import { renderStarSvgSaderiba } from "@/lib/starRenderSaderiba";   // 🔹 новый бордовый вариант
 import { calcStarNumbers } from "@/lib/starMath";

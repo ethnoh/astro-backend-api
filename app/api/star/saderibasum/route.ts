@@ -1,4 +1,5 @@
 // app/api/star/saderibasum/route.ts
+import "@/lib/registerFont";
 import { NextRequest } from "next/server";
 import { renderStarSvgSaderibaSum } from "@/lib/starRenderSaderibaSum";
 import { calcStarNumbers } from "@/lib/starMath";

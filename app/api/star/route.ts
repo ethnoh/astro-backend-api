@@ -1,8 +1,11 @@
 // app/api/star/route.ts
+import "@/lib/registerFont";
 import { NextRequest } from "next/server";
 import { renderStarSvg } from "@/lib/starRender";   // если алиасы не работают — замени на "../../../lib/starRender"
 import { calcStarNumbers } from "@/lib/starMath";   // или "../../../lib/starMath"
 import { PDFDocument } from "pdf-lib";
+
+
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

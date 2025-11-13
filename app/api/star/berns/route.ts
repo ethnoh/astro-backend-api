@@ -1,4 +1,5 @@
 // app/api/star/berns/route.ts
+import "@/lib/registerFont";
 import { NextRequest } from "next/server";
 import { renderStarSvgBerns } from "@/lib/starRenderBerns"; // 🔹 твой новый файл
 import { calcStarNumbers } from "@/lib/starMath";

@@ -1,3 +1,4 @@
+import "@/lib/registerFont";
 import { NextRequest, NextResponse } from "next/server";
 import { drawTrianglePersonibaBerns } from "@/lib/triangles/trianglePersonibaBerns";
 
