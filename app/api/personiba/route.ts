@@ -19,7 +19,7 @@ export async function POST(req: Request) {
       py.on("close", () => resolve(output || errorOutput));
     });
 
-    return NextResponse.json({ status: "ok", result });
+    return NextResponse.json({ status: "error", output, errorOutput });
   } catch (e) {
     return NextResponse.json({ error: e?.toString() }, { status: 500 });
   }
