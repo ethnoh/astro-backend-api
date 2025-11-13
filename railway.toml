@@ -1,5 +1,0 @@
-[build]
-nixpacksPackageOverrides = { nodejs = "nodejs", python = "python311" }
-
-[deploy]
-startCommand = "npm run start"
