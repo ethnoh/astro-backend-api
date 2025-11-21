@@ -16,7 +16,7 @@ if (SUPABASE_URL && SUPABASE_KEY) {
 
 // ---------- CORS ----------
 const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "https://parnumerologiju.lv",
+  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
