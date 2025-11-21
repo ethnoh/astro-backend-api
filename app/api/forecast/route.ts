@@ -10,14 +10,18 @@ const SUPABASE_KEY =
 
 let supabase: any = null;
 
-// ⚠️ ВАЖНО: больше НИКАКИХ throw — иначе build падает
 if (SUPABASE_URL && SUPABASE_KEY) {
   supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 } else {
-  console.warn(
-    "⚠️ Supabase env missing during build. Will initialize only at runtime."
-  );
+  console.warn("⚠️ Supabase env missing during build. Will initialize only at runtime.");
 }
+
+// ---------- CORS ----------
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "https://parnumerologiju.lv",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
 
 // ---------- helpers ----------
 function reduce22(n: number): number {
@@ -78,13 +82,21 @@ function dayOfYearUTC(d: Date): number {
   return Math.floor((cur - start) / 86400000) + 1;
 }
 
-// ---------- API ----------
+// ---------- OPTIONS ----------
+export function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: CORS_HEADERS,
+  });
+}
+
+// ---------- GET ----------
 export async function GET(req: Request) {
   try {
     if (!supabase) {
-      return NextResponse.json(
-        { error: "Supabase not configured (runtime env missing)" },
-        { status: 500 }
+      return new NextResponse(
+        JSON.stringify({ error: "Supabase not configured (runtime env missing)" }),
+        { status: 500, headers: CORS_HEADERS }
       );
     }
 
@@ -92,12 +104,14 @@ export async function GET(req: Request) {
     const date = searchParams.get("date");
 
     if (!date) {
-      return NextResponse.json({ error: "date param required" }, { status: 400 });
+      return new NextResponse(JSON.stringify({ error: "date param required" }), {
+        status: 400,
+        headers: CORS_HEADERS,
+      });
     }
 
     const dob = parseDob(date);
     const today = new Date();
-
     const num = dailyNumber(dob, today);
 
     const { data, error } = await supabase
@@ -108,33 +122,36 @@ export async function GET(req: Request) {
       .order("variant", { ascending: true });
 
     if (error) {
-      return NextResponse.json(
-        { error: "DB error", details: error.message },
-        { status: 500 }
+      return new NextResponse(
+        JSON.stringify({ error: "DB error", details: error.message }),
+        { status: 500, headers: CORS_HEADERS }
       );
     }
 
     if (!data || data.length === 0) {
-      return NextResponse.json(
-        { error: "No forecast found", details: `number=${num}, lang=lv` },
-        { status: 404 }
+      return new NextResponse(
+        JSON.stringify({ error: "No forecast found", details: `number=${num}, lang=lv` }),
+        { status: 404, headers: CORS_HEADERS }
       );
     }
 
     const doy = dayOfYearUTC(today);
     const pick = data[doy % data.length];
 
-    return NextResponse.json({
-      dailyNumber: num,
-      forecast: {
-        title: `Cipars ${num}`,
-        content: pick.content,
-      },
-    });
+    return new NextResponse(
+      JSON.stringify({
+        dailyNumber: num,
+        forecast: {
+          title: `Cipars ${num}`,
+          content: pick.content,
+        },
+      }),
+      { status: 200, headers: CORS_HEADERS }
+    );
   } catch (e: any) {
-    return NextResponse.json(
-      { error: "Server error", details: e?.message || String(e) },
-      { status: 500 }
+    return new NextResponse(
+      JSON.stringify({ error: "Server error", details: e?.message || String(e) }),
+      { status: 500, headers: CORS_HEADERS }
     );
   }
 }
