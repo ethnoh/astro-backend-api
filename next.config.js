@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "standalone",  // ← ← ← КРИТИЧЕСКИ ВАЖНО!!!
+  output: "standalone",
   images: { unoptimized: true },
-  trailingSlash: true,
+  // УБИРАЕМ trailingSlash, потому что он ломает API redirect → CORS
 };
 
 module.exports = nextConfig;
