@@ -12,8 +12,6 @@ let supabase: any = null;
 
 if (SUPABASE_URL && SUPABASE_KEY) {
   supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-} else {
-  console.warn("⚠️ Supabase env missing during build. Will initialize only at runtime.");
 }
 
 // ---------- CORS ----------
@@ -23,7 +21,18 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
-// ---------- helpers ----------
+// ---------- OPTIONS ----------
+export function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      ...CORS_HEADERS,
+      "Content-Type": "application/json",
+    },
+  });
+}
+
+// ---------- Helpers ----------
 function reduce22(n: number): number {
   return n <= 22
     ? n
@@ -38,7 +47,6 @@ const YEAR_OFFSETS: Record<number, number> = { 2025: 9, 2026: 10 };
 
 function personalYear(day: number, month: number, year: number): number {
   const offset = YEAR_OFFSETS[year];
-  if (offset == null) throw new Error(`No offset for target year ${year}`);
   const dPrime = day > 22 ? reduce22(day) : day;
   return reduce22(dPrime + month + offset);
 }
@@ -82,31 +90,19 @@ function dayOfYearUTC(d: Date): number {
   return Math.floor((cur - start) / 86400000) + 1;
 }
 
-// ---------- OPTIONS ----------
-export function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: CORS_HEADERS,
-  });
-}
-
 // ---------- GET ----------
 export async function GET(req: Request) {
   try {
-    if (!supabase) {
-      return new NextResponse(
-        JSON.stringify({ error: "Supabase not configured (runtime env missing)" }),
-        { status: 500, headers: CORS_HEADERS }
-      );
-    }
-
     const { searchParams } = new URL(req.url);
     const date = searchParams.get("date");
 
     if (!date) {
       return new NextResponse(JSON.stringify({ error: "date param required" }), {
         status: 400,
-        headers: CORS_HEADERS,
+        headers: {
+          ...CORS_HEADERS,
+          "Content-Type": "application/json",
+        },
       });
     }
 
@@ -124,14 +120,26 @@ export async function GET(req: Request) {
     if (error) {
       return new NextResponse(
         JSON.stringify({ error: "DB error", details: error.message }),
-        { status: 500, headers: CORS_HEADERS }
+        {
+          status: 500,
+          headers: {
+            ...CORS_HEADERS,
+            "Content-Type": "application/json",
+          },
+        }
       );
     }
 
     if (!data || data.length === 0) {
       return new NextResponse(
-        JSON.stringify({ error: "No forecast found", details: `number=${num}, lang=lv` }),
-        { status: 404, headers: CORS_HEADERS }
+        JSON.stringify({ error: "No forecast found", details: `number=${num}` }),
+        {
+          status: 404,
+          headers: {
+            ...CORS_HEADERS,
+            "Content-Type": "application/json",
+          },
+        }
       );
     }
 
@@ -146,12 +154,24 @@ export async function GET(req: Request) {
           content: pick.content,
         },
       }),
-      { status: 200, headers: CORS_HEADERS }
+      {
+        status: 200,
+        headers: {
+          ...CORS_HEADERS,
+          "Content-Type": "application/json",
+        },
+      }
     );
   } catch (e: any) {
     return new NextResponse(
-      JSON.stringify({ error: "Server error", details: e?.message || String(e) }),
-      { status: 500, headers: CORS_HEADERS }
+      JSON.stringify({ error: "Server error", details: e.message }),
+      {
+        status: 500,
+        headers: {
+          ...CORS_HEADERS,
+          "Content-Type": "application/json",
+        },
+      }
     );
   }
 }
