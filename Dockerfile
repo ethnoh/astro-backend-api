@@ -29,4 +29,4 @@ RUN rm -rf .next
 RUN npm run build
 
 # 8) Стартуем сервер
-CMD ["npm", "start"]
+CMD ["node", ".next/standalone/server.js"]
