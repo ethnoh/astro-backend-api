@@ -1,17 +1,23 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-// ---------- Supabase (server only) ----------
-const SUPABASE_URL = process.env.SUPABASE_URL as string | undefined;
+// ---------- Safe Supabase init ----------
+const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_KEY =
-  (process.env.SUPABASE_SERVICE_ROLE_KEY as string | undefined) ||
-  (process.env.SUPABASE_ANON_KEY as string | undefined);
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.SUPABASE_ANON_KEY ||
+  "";
 
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  throw new Error("Missing SUPABASE_URL or SUPABASE_KEY in env (.env.local).");
+let supabase: any = null;
+
+// ⚠️ ВАЖНО: больше НИКАКИХ throw — иначе build падает
+if (SUPABASE_URL && SUPABASE_KEY) {
+  supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+} else {
+  console.warn(
+    "⚠️ Supabase env missing during build. Will initialize only at runtime."
+  );
 }
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ---------- helpers ----------
 function reduce22(n: number): number {
@@ -24,7 +30,6 @@ function reduce22(n: number): number {
         .reduce((a, b) => a + b, 0);
 }
 
-// офсеты из тз
 const YEAR_OFFSETS: Record<number, number> = { 2025: 9, 2026: 10 };
 
 function personalYear(day: number, month: number, year: number): number {
@@ -43,9 +48,9 @@ function dailyNumber(dob: Date, target: Date): number {
 function parseDob(input: string): Date {
   const s = input.trim();
   const fmts = [
-    /^(\d{2})\.(\d{2})\.(\d{4})$/, // DD.MM.YYYY
-    /^(\d{4})-(\d{2})-(\d{2})$/,   // YYYY-MM-DD
-    /^(\d{2})\/(\d{2})\/(\d{4})$/, // DD/MM/YYYY
+    /^(\d{2})\.(\d{2})\.(\d{4})$/,
+    /^(\d{4})-(\d{2})-(\d{2})$/,
+    /^(\d{2})\/(\d{2})\/(\d{4})$/,
   ];
   for (const re of fmts) {
     const m = s.match(re);
@@ -64,7 +69,7 @@ function parseDob(input: string): Date {
       }
     }
   }
-  throw new Error("Invalid birthDate format. Expected DD.MM.YYYY");
+  throw new Error("Invalid birthDate format.");
 }
 
 function dayOfYearUTC(d: Date): number {
@@ -73,13 +78,20 @@ function dayOfYearUTC(d: Date): number {
   return Math.floor((cur - start) / 86400000) + 1;
 }
 
-// ---------- API (GET version) ----------
+// ---------- API ----------
 export async function GET(req: Request) {
   try {
+    if (!supabase) {
+      return NextResponse.json(
+        { error: "Supabase not configured (runtime env missing)" },
+        { status: 500 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const date = searchParams.get("date");
 
-    if (!date || typeof date !== "string") {
+    if (!date) {
       return NextResponse.json({ error: "date param required" }, { status: 400 });
     }
 
@@ -96,8 +108,12 @@ export async function GET(req: Request) {
       .order("variant", { ascending: true });
 
     if (error) {
-      return NextResponse.json({ error: "DB error", details: error.message }, { status: 500 });
+      return NextResponse.json(
+        { error: "DB error", details: error.message },
+        { status: 500 }
+      );
     }
+
     if (!data || data.length === 0) {
       return NextResponse.json(
         { error: "No forecast found", details: `number=${num}, lang=lv` },
@@ -112,13 +128,12 @@ export async function GET(req: Request) {
       dailyNumber: num,
       forecast: {
         title: `Cipars ${num}`,
-        content: pick.content
-      }
+        content: pick.content,
+      },
     });
-
   } catch (e: any) {
     return NextResponse.json(
-      { error: "Server error", details: e?.message ?? String(e) },
+      { error: "Server error", details: e?.message || String(e) },
       { status: 500 }
     );
   }
