@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // output: 'export',   // ❌ УБРАТЬ — ломает API
+  output: "standalone",  // ← ← ← КРИТИЧЕСКИ ВАЖНО!!!
   images: { unoptimized: true },
   trailingSlash: true,
 };
