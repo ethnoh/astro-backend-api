@@ -47,7 +47,7 @@ export async function GET(req: Request) {
             return new NextResponse(fileBuffer, {
               headers: {
                 "Content-Type": "application/pdf",
-                "Content-Disposition": `attachment; filename="Personibas_Analize_${birth}.pdf"`
+                "Content-Disposition": `attachment; filename="PERSONIBAS_ANALIZE_${birth}.pdf"`
                }
             });
         } catch (err) {
