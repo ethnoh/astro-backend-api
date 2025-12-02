@@ -169,15 +169,46 @@ for month_num, month_name in enumerate(month_names, start=1):
 c.save()
 print(f"✅ PDF saved: {pdf_path}")
 
-# === Send email with PDF ===
-msg = MIMEMultipart()
-msg["From"] = GMAIL_USER
-msg["To"] = recipient_email
-msg["Subject"] = "Tava Gada prognoze"
+# === SENDGRID EMAIL SEND ===
+print(f"📧 Sending email via SendGrid to: {recipient_email}")
 
-body = """
-<html>
-  <body style="font-family: DejaVu Sans, Arial, sans-serif; color:#000; line-height:1.6;">
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import (
+    Mail, Email, To, Attachment,
+    FileContent, FileName, FileType, Disposition
+)
+import base64
+
+SENDGRID_KEY = os.getenv("SENDGRID_API_KEY")
+SENDGRID_FROM = os.getenv("SENDGRID_FROM", "evijaparnumerologiju@gmail.com")
+SENDGRID_FROM_NAME = os.getenv("SENDGRID_FROM_NAME", "Numeroloģija")
+SENDGRID_REPLY_TO = os.getenv("SENDGRID_REPLY_TO", "evijaparnumerologiju@gmail.com")
+
+if not SENDGRID_KEY:
+    raise SystemExit("❌ Missing SENDGRID_API_KEY environment variable")
+
+print("DEBUG: SENDGRID_KEY prefix:", SENDGRID_KEY[:10] if SENDGRID_KEY else "NONE")
+sg = SendGridAPIClient(SENDGRID_KEY)
+
+# Read PDF
+with open(pdf_path, "rb") as f:
+    pdf_data = f.read()
+    encoded_pdf = base64.b64encode(pdf_data).decode()
+
+attachment = Attachment(
+    FileContent(encoded_pdf),
+    FileName(os.path.basename(pdf_path)),
+    FileType("application/pdf"),
+    Disposition("attachment")
+)
+
+message = Mail(
+    from_email=Email(SENDGRID_FROM, SENDGRID_FROM_NAME),
+    to_emails=To(recipient_email),
+    subject=f"Gada prognoze {target_year}",
+    html_content=f"""
+    <p>Labdien,</p>
+
     <p>Paldies, ka izvēlējies Gada prognozi! Skati to zemāk pielikumā.</p>
     <p>Katrs gads atver jaunas durvis – tas nes līdzi gan izaicinājumus, gan iespējas.
     Zinot savus ritmus un galvenos akcentus, Tu vari veidot gudrāku ikdienu,
@@ -191,22 +222,19 @@ body = """
 
     <p>No sirds pateicos par uzticību!</p>
     <p>Ar sirsnīgiem sveicieniem,<br><b>Evija</b></p>
-  </body>
-</html>
-"""
-msg.attach(MIMEText(body, "html", "utf-8"))
+    """
+)
 
+message.reply_to = Email(SENDGRID_REPLY_TO)
+message.attachment = attachment
 
-with open(pdf_path, "rb") as f:
-    part = MIMEBase("application", "octet-stream")
-    part.set_payload(f.read())
-encoders.encode_base64(part)
-part.add_header("Content-Disposition", f'attachment; filename="{os.path.basename(pdf_path)}"')
-msg.attach(part)
-
-with smtplib.SMTP("smtp.gmail.com", 587) as server:
-    server.starttls()
-    server.login(GMAIL_USER, GMAIL_PASS)
-    server.send_message(msg)
-
-print(f"📧 Email with PDF sent to {recipient_email}")
+try:
+    response = sg.send(message)
+    print(f"📧 SendGrid status: {response.status_code}")
+    try:
+        print(f"📧 SendGrid response body: {response.body}")
+    except Exception:
+        pass
+    print("📧 Email sent via SendGrid (no exception)")
+except Exception as e:
+    print("❌ SendGrid error:", repr(e))
