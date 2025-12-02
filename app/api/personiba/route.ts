@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { spawn } from "child_process";
 import path from "path";
+import fs from "fs";
+
 
 export async function GET(req: Request) {
   try {
@@ -18,6 +20,9 @@ export async function GET(req: Request) {
 
     const scriptPath = path.join(process.cwd(), "make_personiba_pdf.py");
 
+    console.log("DEBUG Railway SENDGRID KEY:", process.env.SENDGRID_API_KEY?.slice(0,10));
+
+
     // запускаем python3 make_personiba_pdf.py date email
     const py = spawn("python3", [scriptPath, date, email]);
 
@@ -30,6 +35,25 @@ export async function GET(req: Request) {
     const result = await new Promise((resolve) => {
       py.on("close", () => resolve(output || errorOutput));
     });
+
+
+    // === DOWNLOAD MODE (optional) ===
+    if (searchParams.get("download") === "1") {
+        try {
+            const birth = searchParams.get("date")!.replace(/\./g, "");
+            const filePath = `/tmp/PERSONIBAS_ANALIZE_${birth}.pdf`;
+            const fileBuffer = fs.readFileSync(filePath);
+
+            return new NextResponse(fileBuffer, {
+              headers: {
+                "Content-Type": "application/pdf",
+                "Content-Disposition": `attachment; filename="Personibas_Analize_${birth}.pdf"`
+               }
+            });
+        } catch (err) {
+            console.error("Download error:", err);
+        }
+    }
 
     return NextResponse.json({
       status: "ok",

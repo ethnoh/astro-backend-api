@@ -446,6 +446,7 @@ SENDGRID_REPLY_TO = os.getenv("SENDGRID_REPLY_TO", "evijaparnumerologiju@gmail.c
 if not SENDGRID_KEY:
     raise SystemExit("❌ Missing SENDGRID_API_KEY environment variable")
 
+print("DEBUG: SENDGRID_KEY prefix:", SENDGRID_KEY[:10] if SENDGRID_KEY else "NONE")
 sg = SendGridAPIClient(SENDGRID_KEY)
 
 # read pdf file
