@@ -14,7 +14,7 @@ from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-API_BASE = os.getenv("API_BASE", "http://localhost:3333")
+API_BASE = os.getenv("API_BASE", "http://localhost:8080")
 
 # =========================
 # ENV & SUPABASE
@@ -246,30 +246,44 @@ draw_full_bg(c, W, H, last); c.showPage()
 c.save()
 print(f"✅ PDF saved: {out_pdf}")
 
-# === Email setup ===
-GMAIL_USER = "evijaparnumerologiju@gmail.com"
-GMAIL_PASS = os.getenv("GMAIL_APP_PASSWORD")
+# === SENDGRID EMAIL SEND ===
+print(f"📧 Sending email via SendGrid to: {recipient_email}")
 
-if not recipient_email or "@" not in recipient_email:
-    print(f"⚠️ Invalid recipient email: {repr(recipient_email)}. Skipping email send.")
-    sys.exit(1)
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import (
+    Mail, Email, To, Attachment,
+    FileContent, FileName, FileType, Disposition
+)
+import base64
 
-print(f"📧 Sending email to: {recipient_email}")
+SENDGRID_KEY = os.getenv("SENDGRID_API_KEY")
+SENDGRID_FROM = os.getenv("SENDGRID_FROM", "evijaparnumerologiju@gmail.com")
+SENDGRID_FROM_NAME = os.getenv("SENDGRID_FROM_NAME", "Numeroloģija")
+SENDGRID_REPLY_TO = os.getenv("SENDGRID_REPLY_TO", "evijaparnumerologiju@gmail.com")
 
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email.mime.text import MIMEText
-from email import encoders
-import smtplib
+if not SENDGRID_KEY:
+    raise SystemExit("❌ Missing SENDGRID_API_KEY environment variable")
 
-msg = MIMEMultipart()
-msg["From"] = GMAIL_USER
-msg["To"] = recipient_email
-msg["Subject"] = "Numeroloģiskā Bērna personības analīze"
+print("DEBUG: SENDGRID_KEY prefix:", SENDGRID_KEY[:10] if SENDGRID_KEY else "NONE")
+sg = SendGridAPIClient(SENDGRID_KEY)
 
-body = """
-<html>
-  <body style="font-family: DejaVu Sans, Arial, sans-serif; color:#000; line-height:1.6; font-size:14px;">
+# Read PDF
+with open(out_pdf, "rb") as f:
+    pdf_data = f.read()
+    encoded_pdf = base64.b64encode(pdf_data).decode()
+
+attachment = Attachment(
+    FileContent(encoded_pdf),
+    FileName(os.path.basename(out_pdf)),
+    FileType("application/pdf"),
+    Disposition("attachment")
+)
+
+message = Mail(
+    from_email=Email(SENDGRID_FROM, SENDGRID_FROM_NAME),
+    to_emails=To(recipient_email),
+    subject="Bērna personības analīze",
+    html_content="""
     <p>Labdien,</p>
 
     <p>Paldies, ka izvēlējies <b>Bērna personības analīzi</b>. Skati to zemāk pielikumā.</p>
@@ -287,24 +301,20 @@ body = """
 
     <p>Ar pateicību un sirsnīgiem sveicieniem,<br>
     <b>Evija</b></p>
-  </body>
-</html>
-"""
+    """
+)
 
+message.reply_to = Email(SENDGRID_REPLY_TO)
+message.attachment = attachment
 
-msg.attach(MIMEText(body, "html", "utf-8"))
-
-with open(out_pdf, "rb") as f:
-    part = MIMEBase("application", "octet-stream")
-    part.set_payload(f.read())
-encoders.encode_base64(part)
-part.add_header("Content-Disposition", f'attachment; filename="{os.path.basename(out_pdf)}"')
-msg.attach(part)
-
-with smtplib.SMTP("smtp.gmail.com", 587) as server:
-    server.starttls()
-    server.login(GMAIL_USER, GMAIL_PASS)
-    server.send_message(msg)
-
-print(f"📧 Email with PDF sent to {recipient_email}")
+try:
+    response = sg.send(message)
+    print(f"📧 SendGrid status: {response.status_code}")
+    try:
+        print(f"📧 SendGrid response body: {response.body}")
+    except Exception:
+        pass
+    print("📧 Email sent via SendGrid (no exception)")
+except Exception as e:
+    print("❌ SendGrid error:", repr(e))
 
