@@ -431,41 +431,29 @@ for n in (m1, m2, m3):
 c.save()
 print(f"✅ PDF saved: {out_pdf}")
 
-# === SENDGRID EMAIL SEND ===
-print(f"📧 Sending email via SendGrid to: {recipient_email}")
+# === GMAIL SMTP SEND ===
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email.mime.text import MIMEText
+from email import encoders
 
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail, Email, To, Attachment, FileContent, FileName, FileType, Disposition
-import base64
+GMAIL_USER = os.getenv("GMAIL_USER")
+GMAIL_PASS = os.getenv("GMAIL_APP_PASSWORD")
 
-SENDGRID_KEY = os.getenv("SENDGRID_API_KEY")
-SENDGRID_FROM = os.getenv("SENDGRID_FROM", "evijaparnumerologiju@gmail.com")
-SENDGRID_FROM_NAME = os.getenv("SENDGRID_FROM_NAME", "Numeroloģija")
-SENDGRID_REPLY_TO = os.getenv("SENDGRID_REPLY_TO", "evijaparnumerologiju@gmail.com")
+print("DEBUG: Gmail user:", GMAIL_USER)
 
-if not SENDGRID_KEY:
-    raise SystemExit("❌ Missing SENDGRID_API_KEY environment variable")
+if not GMAIL_USER or not GMAIL_PASS:
+    print("❌ Gmail env vars missing — SMTP skipped")
+else:
+    print(f"📧 Sending email via Gmail SMTP to: {recipient_email}")
 
-print("DEBUG: SENDGRID_KEY prefix:", SENDGRID_KEY[:10] if SENDGRID_KEY else "NONE")
-sg = SendGridAPIClient(SENDGRID_KEY)
+    msg = MIMEMultipart()
+    msg["From"] = GMAIL_USER
+    msg["To"] = recipient_email
+    msg["Subject"] = "Numeroloģiskā Personības analīze (Gmail SMTP)"
 
-# read pdf file
-with open(out_pdf, "rb") as f:
-    pdf_data = f.read()
-    encoded_pdf = base64.b64encode(pdf_data).decode()
-
-attachment = Attachment(
-    FileContent(encoded_pdf),
-    FileName(os.path.basename(out_pdf)),
-    FileType("application/pdf"),
-    Disposition("attachment")
-)
-
-message = Mail(
-    from_email=Email(SENDGRID_FROM, SENDGRID_FROM_NAME),
-    to_emails=To(recipient_email),
-    subject="Numeroloģiskā Personības analīze",
-    html_content="""
+    msg.attach(MIMEText("""
     <p>Labdien,</p>
     <p>Paldies, ka izvēlējies numeroloģisko <b>Personības analīzi</b> – to, kas palīdz tuvāk iepazīt sevi. 
     Skati to zemāk pielikumā.</p>
@@ -482,24 +470,21 @@ message = Mail(
     Tava sevis izzināšanas ceļa.</p>
 
     <p>Ar pateicību un sirsnīgiem sveicieniem,<br><b>Evija</b></p>
-  </body>
-</html>
-"""
-)
+    """, "plain", "utf-8"))
 
-message.reply_to = Email(SENDGRID_REPLY_TO)
-message.attachment = attachment
+    with open(out_pdf, "rb") as f:
+        part = MIMEBase("application", "octet-stream")
+        part.set_payload(f.read())
+        encoders.encode_base64(part)
+        part.add_header("Content-Disposition", f"attachment; filename={os.path.basename(out_pdf)}")
+        msg.attach(part)
 
-try:
-    response = sg.send(message)
-    print(f"📧 SendGrid status: {response.status_code}")
-    # На время дебага выводим body, чтобы видеть текст ошибки, если что
     try:
-        print(f"📧 SendGrid response body: {response.body}")
-    except Exception:
-        pass
-    print("📧 Email sent via SendGrid (no exception)")
-except Exception as e:
-    # Очень важно: печатаем ошибку в stdout, чтобы её увидел Node
-    print("❌ SendGrid error:", repr(e))
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.starttls()
+            server.login(GMAIL_USER, GMAIL_PASS)
+            server.sendmail(GMAIL_USER, recipient_email, msg.as_string())
 
+        print("📧 Gmail SMTP: email sent successfully")
+    except Exception as e:
+        print("❌ Gmail SMTP error:", repr(e))
