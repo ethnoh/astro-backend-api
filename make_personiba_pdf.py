@@ -489,7 +489,16 @@ message = Mail(
 message.reply_to = Email(SENDGRID_REPLY_TO)
 message.attachment = attachment
 
-response = sg.send(message)
+try:
+    response = sg.send(message)
+    print(f"📧 SendGrid status: {response.status_code}")
+    # На время дебага выводим body, чтобы видеть текст ошибки, если что
+    try:
+        print(f"📧 SendGrid response body: {response.body}")
+    except Exception:
+        pass
+    print("📧 Email sent via SendGrid (no exception)")
+except Exception as e:
+    # Очень важно: печатаем ошибку в stdout, чтобы её увидел Node
+    print("❌ SendGrid error:", repr(e))
 
-print(f"📧 SendGrid status: {response.status_code}")
-print("📧 Email sent via SendGrid")
