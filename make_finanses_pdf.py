@@ -27,7 +27,7 @@ sb: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 STORE = f"{SUPABASE_URL}/storage/v1/object/public/astro-forecasts/finanses"
 pdfmetrics.registerFont(TTFont("DejaVu", os.path.join(os.path.dirname(__file__), "DejaVuSans.ttf")))
 
-API_BASE = os.getenv("API_BASE", "http://localhost:3333")
+API_BASE = os.getenv("API_BASE", "http://localhost:8080")
 
 
 # === HELPERS ===
@@ -123,11 +123,12 @@ def finanses_numbers(d: int, m: int, y: int):
     return OrderedDict(top=top, right=right, left=left, mr=mr, ml=ml, mb=mb)
 
 # === MAIN ===
-if len(sys.argv) < 2:
-    print("❌ Usage: python make_finanses_pdf.py DD.MM.YYYY")
+if len(sys.argv) < 3:
+    print("❌ Usage: python make_finanses_pdf.py DD.MM.YYYY recipient@email.com")
     sys.exit(1)
 
 birthdate = sys.argv[1]
+recipient_email = sys.argv[2]
 d, m, y = map(int, birthdate.split("."))
 
 CUSTOM_PAGE = (1920, 1080)
@@ -193,32 +194,44 @@ c.showPage()
 c.save()
 print(f"✅ PDF saved: {out_pdf}")
 
-# === Email setup ===
-if len(sys.argv) < 3:
-    print("❌ Usage: python make_finanses_pdf.py DD.MM.YYYY recipient@email.com")
-    sys.exit(1)
+# === SENDGRID EMAIL SEND ===
+print(f"📧 Sending email via SendGrid to: {recipient_email}")
 
-recipient_email = sys.argv[2]
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import (
+    Mail, Email, To, Attachment,
+    FileContent, FileName, FileType, Disposition
+)
+import base64
 
-GMAIL_USER = "evijaparnumerologiju@gmail.com"
-GMAIL_PASS = os.getenv("GMAIL_APP_PASSWORD")
+SENDGRID_KEY = os.getenv("SENDGRID_API_KEY")
+SENDGRID_FROM = os.getenv("SENDGRID_FROM", "evijaparnumerologiju@gmail.com")
+SENDGRID_FROM_NAME = os.getenv("SENDGRID_FROM_NAME", "Numeroloģija")
+SENDGRID_REPLY_TO = os.getenv("SENDGRID_REPLY_TO", "evijaparnumerologiju@gmail.com")
 
-print(f"📧 Sending email to: {recipient_email}")
+if not SENDGRID_KEY:
+    raise SystemExit("❌ Missing SENDGRID_API_KEY environment variable")
 
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email.mime.text import MIMEText
-from email import encoders
-import smtplib
+print("DEBUG: SENDGRID_KEY prefix:", SENDGRID_KEY[:10] if SENDGRID_KEY else "NONE")
+sg = SendGridAPIClient(SENDGRID_KEY)
 
-msg = MIMEMultipart()
-msg["From"] = GMAIL_USER
-msg["To"] = recipient_email
-msg["Subject"] = "Finanšu un realizācijas ceļvedis"
+# read pdf file
+with open(out_pdf, "rb") as f:
+    pdf_data = f.read()
+    encoded_pdf = base64.b64encode(pdf_data).decode()
 
-body = """
-<html>
-  <body style="font-family: DejaVu Sans, Arial, sans-serif; color:#000; line-height:1.6; font-size:14px;">
+attachment = Attachment(
+    FileContent(encoded_pdf),
+    FileName(os.path.basename(out_pdf)),
+    FileType("application/pdf"),
+    Disposition("attachment"),
+)
+
+message = Mail(
+    from_email=Email(SENDGRID_FROM, SENDGRID_FROM_NAME),
+    to_emails=To(recipient_email),
+    subject="Finanšu un Realizācijas ceļvedis",
+    html_content="""
     <p>Labdien,</p>
 
     <p>Paldies, ka izvēlējies <b>Finanšu un realizācijas ceļvedi</b>! Skati to zemāk pielikumā.</p>
@@ -242,22 +255,19 @@ body = """
     <p>No sirds pateicos par uzticību un to, ka ļāvi man būt līdzās šajā nozīmīgajā ceļā.</p>
 
     <p>Ar sirsnīgiem sveicieniem,<br><b>Evija</b></p>
-  </body>
-</html>
-"""
+    """
+)
 
-msg.attach(MIMEText(body, "html", "utf-8"))
+message.reply_to = Email(SENDGRID_REPLY_TO)
+message.attachment = attachment
 
-with open(out_pdf, "rb") as f:
-    part = MIMEBase("application", "octet-stream")
-    part.set_payload(f.read())
-encoders.encode_base64(part)
-part.add_header("Content-Disposition", f'attachment; filename="{os.path.basename(out_pdf)}"')
-msg.attach(part)
-
-with smtplib.SMTP("smtp.gmail.com", 587) as server:
-    server.starttls()
-    server.login(GMAIL_USER, GMAIL_PASS)
-    server.send_message(msg)
-
-print(f"📧 Email with PDF sent to {recipient_email}")
+try:
+    response = sg.send(message)
+    print(f"📧 SendGrid status: {response.status_code}")
+    try:
+        print(f"📧 SendGrid response body: {response.body}")
+    except Exception:
+        pass
+    print("📧 Email sent via SendGrid (no exception)")
+except Exception as e:
+    print("❌ SendGrid error:", repr(e))
