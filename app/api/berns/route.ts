@@ -18,7 +18,7 @@ export async function GET(req: Request) {
       );
     }
 
-    const scriptPath = path.join(process.cwd(), "make_berns_pdf");
+    const scriptPath = path.join(process.cwd(), "make_berns_pdf.py");
 
     console.log("DEBUG Railway SENDGRID KEY:", process.env.SENDGRID_API_KEY?.slice(0,10));
 
