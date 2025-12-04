@@ -51,7 +51,7 @@ function yearOffset(year: number): number {
     .map(Number)
     .reduce((a, b) => a + b, 0);
 }
-/* dfsd*/
+/* dfsdfgdg*/
 
 function personalYear(day: number, month: number, year: number): number {
   const offset = yearOffset(year);
