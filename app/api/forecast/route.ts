@@ -32,7 +32,7 @@ export function OPTIONS() {
   });
 }
 
-// ---------- Helpers ----------
+// ---------- HELPERS ----------
 function reduce22(n: number): number {
   return n <= 22
     ? n
@@ -43,18 +43,65 @@ function reduce22(n: number): number {
         .reduce((a, b) => a + b, 0);
 }
 
-const YEAR_OFFSETS: Record<number, number> = { 2025: 9, 2026: 10 };
+// OFFSET = сумма цифр года (как в твоей таблице)
+function yearOffset(year: number): number {
+  return year
+    .toString()
+    .split("")
+    .map(Number)
+    .reduce((a, b) => a + b, 0);
+}
+
+/*
+  Твоя формула:
+
+  1) gada cipars:
+     s1 = day + month
+     if s1 > 22 → reduce22(s1)
+     s2 = s1 + offset
+     if s2 > 22 → reduce22(s2)
+
+  2) dienas cipars:
+     total = py + curMonth
+     if total > 22 → reduce22(total)
+     total += curDay
+     if total > 22 → reduce22(total)
+*/
 
 function personalYear(day: number, month: number, year: number): number {
-  const offset = YEAR_OFFSETS[year];
-  const dPrime = day > 22 ? reduce22(day) : day;
-  return reduce22(dPrime + month + offset);
+  const offset = yearOffset(year);
+
+  let s1 = day + month;
+  if (s1 > 22) {
+    s1 = reduce22(s1);
+  }
+
+  let s2 = s1 + offset;
+  if (s2 > 22) {
+    s2 = reduce22(s2);
+  }
+
+  return s2;
 }
 
 function dailyNumber(dob: Date, target: Date): number {
-  const py = personalYear(dob.getDate(), dob.getMonth() + 1, target.getFullYear());
-  const dayPrime = target.getDate() > 22 ? reduce22(target.getDate()) : target.getDate();
-  return reduce22(py + (target.getMonth() + 1) + dayPrime);
+  const py = personalYear(
+    dob.getDate(),
+    dob.getMonth() + 1,
+    target.getFullYear()
+  );
+
+  let total = py + (target.getMonth() + 1);
+  if (total > 22) {
+    total = reduce22(total);
+  }
+
+  total += target.getDate();
+  if (total > 22) {
+    total = reduce22(total);
+  }
+
+  return total;
 }
 
 function parseDob(input: string): Date {
