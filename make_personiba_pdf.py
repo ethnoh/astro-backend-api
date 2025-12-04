@@ -439,9 +439,9 @@ from sendgrid.helpers.mail import Mail, Email, To, Attachment, FileContent, File
 import base64
 
 SENDGRID_KEY = os.getenv("SENDGRID_API_KEY")
-SENDGRID_FROM = os.getenv("SENDGRID_FROM", "evijaparnumerologiju@gmail.com")
-SENDGRID_FROM_NAME = os.getenv("SENDGRID_FROM_NAME", "Numeroloģija")
-SENDGRID_REPLY_TO = os.getenv("SENDGRID_REPLY_TO", "evijaparnumerologiju@gmail.com")
+SENDGRID_FROM = os.getenv("SENDGRID_FROM", "info@parnumerologiju.lv")
+SENDGRID_FROM_NAME = os.getenv("SENDGRID_FROM_NAME", "Par Numeroloģiju")
+SENDGRID_REPLY_TO = os.getenv("SENDGRID_REPLY_TO", "info@parnumerologiju.lv")
 
 if not SENDGRID_KEY:
     raise SystemExit("❌ Missing SENDGRID_API_KEY environment variable")
