@@ -137,7 +137,7 @@ function dayOfYearUTC(d: Date): number {
   return Math.floor((cur - start) / 86400000) + 1;
 }
 
-// ---------- GET ----------
+// ---------- GET -------------
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
