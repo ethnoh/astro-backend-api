@@ -69,14 +69,27 @@ d, m, y = map(int, birthdate.split("."))
 
 year_offset = YEAR_OFFSETS.get(target_year)
 if year_offset is None:
-    # безопасный фоллбек, чтобы ничего не ломать, если забудем добавить год
+    # безопасный фоллбек, если забудем добавить год
     year_offset = sum(map(int, str(target_year)))
     print(f"⚠️ No offset configured for {target_year}, using digit sum: {year_offset}")
 else:
     print(f"🧮 Using configured offset for {target_year}: {year_offset}")
 
-gada_cipars = reduce_22(d + m + year_offset)
-print(f"🧮 Gada cipars formula: {d} + {m} + {year_offset} = {gada_cipars}")
+# === GADA CIPARS по новой формуле ===
+# 1) d + m → если >22, редуцируем
+base_sum = d + m
+if base_sum > 22:
+    base_sum = reduce_22(base_sum)
+
+# 2) base_sum + year_offset → если >22, редуцируем
+gada_raw = base_sum + year_offset
+if gada_raw > 22:
+    gada_cipars = reduce_22(gada_raw)
+else:
+    gada_cipars = gada_raw
+
+print(f"🧮 Gada cipars formula: ({d} + {m}) -> {base_sum} + {year_offset} = {gada_cipars}")
+
 
 
 
