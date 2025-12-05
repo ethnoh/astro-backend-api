@@ -13,11 +13,11 @@ function getStripe() {
 
 // PRICE IDs FROM STRIPE
 const PRICE_IDS: Record<string, string> = {
-  personiba: "price_1Sal2V1fdzgcv7kkUxNrLTsy",
-  finanses: "price_1Sal721fdzgcv7kkM3NjtPzn",
-  berns: "price_1Sal7O1fdzgcv7kkWMPW6nRA",
-  saderiba: "price_1Sal7b1fdzgcv7kkbk0bOb14",
-  gada: "price_1Sal7r1fdzgcv7kkz0xrAGPq",
+  personiba: "price_1Sb1sg1RTgVwDdtK4iNjWBTl",
+  finanses: "price_1Sb1vM1RTgVwDdtKAiBAFABj",
+  berns: "price_1Sb1wP1RTgVwDdtK4b7HQmgs",
+  saderiba: "price_1Sb1xW1RTgVwDdtKEbAbNMfz",
+  gada: "price_1Sb1yG1RTgVwDdtKJp96j5CY",
 };
 
 export async function POST(req: Request) {
