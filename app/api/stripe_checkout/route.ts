@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+// --- FIX: Lazy Stripe initialization (prevents build-time crash) ---
+function getStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) {
+    throw new Error("Missing STRIPE_SECRET_KEY");
+  }
 
-// PRICE IDs FROM STRIPE (LIVE LATER)
+  return new Stripe(key);
+}
+
+// PRICE IDs FROM STRIPE
 const PRICE_IDS: Record<string, string> = {
   personiba: "price_1Sal2V1fdzgcv7kkUxNrLTsy",
   finanses: "price_1Sal721fdzgcv7kkM3NjtPzn",
@@ -14,14 +22,19 @@ const PRICE_IDS: Record<string, string> = {
 
 export async function POST(req: Request) {
   try {
+    const stripe = getStripe(); // FIX: initialize here, not at import time
+
     const body = await req.json();
     const { report, date, partner, email, year } = body;
 
     if (!report || !PRICE_IDS[report]) {
-      return NextResponse.json({ error: "Unknown report type" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Unknown report type" },
+        { status: 400 }
+      );
     }
 
-    // Save metadata for final PDF creation after purchase:
+    // Metadata passed into webhook for further PDF generation
     const metadata: Record<string, string> = {
       report,
     };
