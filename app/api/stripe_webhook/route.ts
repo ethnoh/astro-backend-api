@@ -3,19 +3,21 @@ import Stripe from "stripe";
 import { spawn } from "child_process";
 import path from "path";
 
-// Required config for App Router (instead of deprecated export const config)
 export const runtime = "nodejs";
 export const preferredRegion = "fra1";
 
-// Lazy Stripe init
+export const config = {
+  api: {
+    bodyParser: false, // ⛔ обязательно отключаем парсинг тела
+  },
+};
+
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw new Error("Missing STRIPE_SECRET_KEY");
-
   return new Stripe(key);
 }
 
-// Helper: raw body for Stripe signature check
 async function readRawBody(req: Request): Promise<Buffer> {
   const array = await req.arrayBuffer();
   return Buffer.from(array);
@@ -47,13 +49,11 @@ export async function POST(req: Request) {
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
-
       const metadata = session.metadata || {};
       console.log("🔥 Payment completed:", metadata);
 
       const { report, date, partner, email, year } = metadata;
 
-      // Map reports to Python scripts
       const scriptMap: Record<string, string> = {
         personiba: "make_personiba_pdf.py",
         finanses: "make_finanses_pdf.py",
@@ -80,8 +80,12 @@ export async function POST(req: Request) {
         const py = spawn("python3", [scriptPath, ...args]);
 
         py.stdout.on("data", (d) => console.log("PYTHON:", d.toString()));
-        py.stderr.on("data", (d) => console.error("PYTHON ERROR:", d.toString()));
-        py.on("close", (code) => console.log("Python finished with code:", code));
+        py.stderr.on("data", (d) =>
+          console.error("PYTHON ERROR:", d.toString())
+        );
+        py.on("close", (code) =>
+          console.log("Python finished with code:", code)
+        );
       }
     }
 
