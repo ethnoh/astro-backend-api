@@ -3,7 +3,11 @@ import Stripe from "stripe";
 import { spawn } from "child_process";
 import path from "path";
 
-// Lazy init Stripe to avoid build-time crash
+// Required config for App Router (instead of deprecated export const config)
+export const runtime = "nodejs";
+export const preferredRegion = "fra1";
+
+// Lazy Stripe init
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw new Error("Missing STRIPE_SECRET_KEY");
@@ -11,13 +15,7 @@ function getStripe() {
   return new Stripe(key);
 }
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
-// Helper to read raw body (Stripe requires it)
+// Helper: raw body for Stripe signature check
 async function readRawBody(req: Request): Promise<Buffer> {
   const array = await req.arrayBuffer();
   return Buffer.from(array);
@@ -26,7 +24,6 @@ async function readRawBody(req: Request): Promise<Buffer> {
 export async function POST(req: Request) {
   try {
     const stripe = getStripe();
-
     const rawBody = await readRawBody(req);
     const signature = req.headers.get("stripe-signature");
 
@@ -36,39 +33,27 @@ export async function POST(req: Request) {
 
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
     if (!endpointSecret) {
-      return NextResponse.json({ error: "Missing webhook secret" }, { status: 500 });
+      return NextResponse.json({ error: "Missing STRIPE_WEBHOOK_SECRET" }, { status: 500 });
     }
 
     let event;
 
     try {
-      event = stripe.webhooks.constructEvent(
-        rawBody,
-        signature,
-        endpointSecret
-      );
+      event = stripe.webhooks.constructEvent(rawBody, signature, endpointSecret);
     } catch (err: any) {
       console.error("❌ Webhook signature error:", err);
-      return NextResponse.json(
-        { error: `Webhook Error: ${err.message}` },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
     }
 
-    // Handle only checkout.session.completed
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
 
       const metadata = session.metadata || {};
-      const report = metadata.report;
-      const date = metadata.date;
-      const partner = metadata.partner;
-      const email = metadata.email;
-      const year = metadata.year;
+      console.log("🔥 Payment completed:", metadata);
 
-      console.log("🔥 Payment success, generating PDF:", metadata);
+      const { report, date, partner, email, year } = metadata;
 
-      // Pick correct python script
+      // Map reports to Python scripts
       const scriptMap: Record<string, string> = {
         personiba: "make_personiba_pdf.py",
         finanses: "make_finanses_pdf.py",
@@ -78,31 +63,26 @@ export async function POST(req: Request) {
       };
 
       const scriptName = scriptMap[report];
-      if (!scriptName) {
-        console.error("Unknown report:", report);
-        return NextResponse.json({ status: "ignored" });
+      if (scriptName) {
+        const scriptPath = path.join(process.cwd(), scriptName);
+
+        const args = [
+          JSON.stringify({
+            date,
+            partner,
+            email,
+            year,
+          }),
+        ];
+
+        console.log("▶️ Running python:", scriptPath);
+
+        const py = spawn("python3", [scriptPath, ...args]);
+
+        py.stdout.on("data", (d) => console.log("PYTHON:", d.toString()));
+        py.stderr.on("data", (d) => console.error("PYTHON ERROR:", d.toString()));
+        py.on("close", (code) => console.log("Python finished with code:", code));
       }
-
-      const scriptPath = path.join(process.cwd(), scriptName);
-
-      // Build args for python
-      const args = [
-        JSON.stringify({
-          date,
-          partner,
-          email,
-          year,
-        }),
-      ];
-
-      console.log("▶️ Running python:", scriptPath);
-
-      const py = spawn("python3", [scriptPath, ...args]);
-
-      py.stdout.on("data", (d) => console.log("PYTHON:", d.toString()));
-      py.stderr.on("data", (d) => console.error("PYTHON ERR:", d.toString()));
-
-      py.on("close", (code) => console.log("Python finished:", code));
     }
 
     return NextResponse.json({ received: true });
